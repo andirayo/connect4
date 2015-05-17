@@ -1,0 +1,9 @@
+# Finder:
+.DS_Store
+# Rubymine:
+.idea
+
+# Unicorn:
+tmp/
+
+
