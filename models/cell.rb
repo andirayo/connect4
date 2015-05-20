@@ -7,15 +7,18 @@ require 'set'
 class Cell
   attr_accessor :stone
   attr_accessor :threats
+  attr_accessor :nogos
+
   attr_accessor :immediate
   attr_accessor :winner
   attr_accessor :col, :row
-  attr_accessor :cell_above
+  attr_accessor :cell_above, :cell_below
   attr_reader :neighbors_bottom_up, :neighbors_horizontal, :neighbors_top_down, :neighbors_vertical
 
   def initialize
     @stone                = Connect4::EMPTY
     @threats              = Set.new
+    @nogos                = Set.new
     @immediate            = false
     @winner               = false
 
@@ -27,6 +30,7 @@ class Cell
     @neighbors_top_down   = []  # top left to bottom right
     @neighbors_vertical   = []  # below to 1 above
     @cell_above           = nil
+    @cell_below           = nil
   end #initialize
 
   def set_neighbors_bottom_up( neighbors )
@@ -76,8 +80,11 @@ class Cell
       # when breaking out of reduce, in_a_row will be nil
       next  unless in_a_row
 
-      raise 'Weird number of stones in a row around cell!'  if 3 < in_a_row
-      potential_threat.threats << @stone                    if 3 == in_a_row
+      raise 'Weird number of stones in a row around cell! ' + neighbor_cells[start..start+3].map(&:to_s).join(',')  if 3 < in_a_row
+      if 3 == in_a_row
+        potential_threat.threats          << @stone
+        potential_threat.cell_below.nogos << Connect4::opponent( @stone )    if potential_threat.cell_below
+      end #if
     end #each
   end #analyze_neighbors_generic
 
@@ -87,20 +94,30 @@ class Cell
     return @threats.include?( player )
   end #threat?
 
+  def nogo?( player = nil )
+    return ! @nogos.empty?  if player.nil?
+    return @nogos.include?( player )
+  end #nogo?
+
   def check?
     threat?  &&  @immediate
   end #check?
 
-  def inspect(nice = true)
+  def inspect( nice = true )
     case @stone
       when Connect4::YELLOW;  nice  ?  '●'  :  '1'    # '⚫'  '🔵'
       when Connect4::RED;     nice  ?  '○'  :  '2'    # '⚪'  '🔴'
       when Connect4::EMPTY
-        nice  ?  (threat?  ?  (check?  ?  '‼'  :  (0 == row % 2  ?  '!'  :  '?'))  :  '◟')  :  '0'
+        nice  ?  (threat?  ?  (check?  ?  '‼'  :  (0 == row % 2  ?  '?'  :  '!'))  :  '◟')  :  '0'
     end #case
   end #inspect
 
+  def hash_stone
+    inspect(false)
+  end #hash_stone
+
   def to_s
+    # ASCii 65 is 'A'
     (@col+64).chr + @row.to_s
   end #to_s
 end #Cell
