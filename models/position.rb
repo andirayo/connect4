@@ -90,6 +90,7 @@ class Position
       p exception
       p moves
       print '-'*40, "\n"; print analyze(true); print '#'*40, "\n"
+      raise
     end #begin-resuce
 
     @moves                          << (col + (next_player ? 64 : 96)).chr
