@@ -4,6 +4,7 @@ require_relative 'models/position'
 
 require 'deep_clone'
 require 'set'
+require 'json'
 
 
 class Analyzer
@@ -19,6 +20,9 @@ class Analyzer
     @calculated[ hash ] = winner
 
     print '.'  if 0 == @calculated.size % 1000
+    if 0 == @calculated.size % 10000
+      File.open('calculated_positions_%s.json' % @calculated.size, 'w') {|f| f.write( @calculated.to_json )}
+    end #if
   end #add_calc
 
   def play( position )
