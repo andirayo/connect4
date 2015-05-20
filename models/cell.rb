@@ -80,7 +80,13 @@ class Cell
       # when breaking out of reduce, in_a_row will be nil
       next  unless in_a_row
 
+      # weird... cell did not know that it was a threat!
+      if 3 < in_a_row
+        @winner = true
+        return
+      end #if
       raise 'Weird number of stones in a row around cell! ' + neighbor_cells[start..start+3].map(&:to_s).join(',')  if 3 < in_a_row
+      
       if 3 == in_a_row
         potential_threat.threats          << @stone
         potential_threat.cell_below.nogos << Connect4::opponent( @stone )    if potential_threat.cell_below
