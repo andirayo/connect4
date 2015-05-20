@@ -19,6 +19,8 @@ p = Position.new
 #p.add_stone( C )
 p = Position.new
 p.add_stones('ddddddefbccccfefffafeeeffd')
+#p.add_stones('DeEaAaAaAcCbBaBbHhHhBcCeHhGgB')
+#p.add_stones('DeEaAaAaAcCbBaBbHhHhBcCeHhGgBbG')
 
 print p.inspect(false); print '-'*40, "\n"; print p.analyze(true); print '#'*40, "\n"
 printf "Position-hash: %s\n", p.hash
