@@ -5,8 +5,10 @@ require_relative 'cell'
 
 
 class Position
+  attr_accessor :moves
   attr_reader :board
   attr_reader :cells
+  attr_reader :possible_cells   # to play
   attr_reader :fill_heights
   attr_reader :total_stones
   attr_reader :last_column, :last_row
@@ -22,10 +24,15 @@ class Position
     end #each
 
     @cells              = []
-    @fill_heights       = Array.new(Connect4::COLUMNS, 0)
+    @moves              = ''
+    @possible_cells     = []  # Set.new
+    @fill_heights       = Hash[(1..Connect4::COLUMNS).zip(Array.new(Connect4::COLUMNS,0))]
     @total_stones       = 0
     @last_column        = false
     @last_row           = false
+
+    @game_over          = false
+    @winner             = nil
 
     initialize_cells
   end #initialize
@@ -33,6 +40,7 @@ class Position
   def initialize_cells
     (1..Connect4::COLUMNS).each do |col|
       @board[col][1].immediate  = true
+      @possible_cells           << @board[col][1]
 
       (1..Connect4::ROWS).each do |row|
         @cells                << @board[col][row]
@@ -52,6 +60,7 @@ class Position
         @board[col][row].set_neighbors_horizontal(  neighbors_horizontal )  if 4 <= neighbors_horizontal.size
         @board[col][row].set_neighbors_top_down(    neighbors_top_down )    if 4 <= neighbors_top_down.size
 
+        @board[col][row].cell_below   = @board[col][row-1]  if 0 < row
         if row < Connect4::ROWS
           @board[col][row].cell_above = @board[col][row+1]
 
@@ -68,25 +77,43 @@ class Position
     col = col.is_a?(Fixnum)  ?  col  :  letter_to_number(col)
 
     return false  if game_over
-    #return false  if Connect4::TOTAL_CELLS  <= @total_stones
     return false  unless (1..Connect4::COLUMNS).include?( col )
     return false  if Connect4::ROWS         <= @fill_heights[col]
 
     @fill_heights[col]              += 1
 
-    @board[col][@fill_heights[col]] << next_player
+#p (col + (next_player ? 64 : 96)).chr
+    begin
+      @board[col][@fill_heights[col]] << next_player
+    rescue => exception
+      print "\n"
+      p exception
+      p moves
+      print '-'*40, "\n"; print analyze(true); print '#'*40, "\n"
+    end #begin-resuce
+
+    @moves                          << (col + (next_player ? 64 : 96)).chr
     @last_column                    = col
     @last_row                       = @fill_heights[col]
+    @possible_cells.delete( @board[col][@fill_heights[col]] )
+    @possible_cells                 << @board[col][@fill_heights[col]+1]  if Connect4::ROWS > @fill_heights[col]
 
     @total_stones                   += 1
 
     if @board[col][@fill_heights[col]].winner
-      @game_over  = true
-      @winner     = last_player
+      @game_over    = true
+      @winner       = last_player
+    elsif Connect4::TOTAL_CELLS  <= @total_stones
+      @game_over    = true
+      @winner       = Connect4::DRAW
     end #if
 
     return true
   end #add_stone
+  #
+  def add_stones( str )
+    str.chars.each( &method(:add_stone) )
+  end #add_stones
 
 
   def threats( player = nil )
@@ -94,12 +121,20 @@ class Position
   end #threats
 
   def checks
-    @cells.select(&:check?)
+    @possible_cells.select(&:check?)
   end #checks
+
+  def nogos( player = nil )
+    @possible_cells.select {|c| c.nogo?(player)}
+  end #nogos
+
+  def playable
+    @possible_cells.reject {|c| c.nogo?(next_player)}
+  end #playable
 
   def letter_to_number( char )
     # ASCii code for "a" is 97
-    char.downcase.ord - 97
+    char.downcase.ord - 96
   end #letter_to_number
 
   def next_player
@@ -115,12 +150,16 @@ class Position
   end #last_cell
 
   def hash
-    @board.map(&:join).join
+    @board.values.map(&:values).map{|c| c.map(&:hash_stone)}.map(&:join).join
   end #hash
 
   def ==( other )
     hash == other.hash
   end #==
+
+  def threats( player = nil )
+    @cells.select {|c| c.threat?(player)}
+  end #threats
 
   def inspect( nice = true, spaces = 1 )
     (Connect4::ROWS).downto(1).map do |row|
@@ -149,6 +188,10 @@ class Position
         end #if
       end #if-else
       output  += sprintf "Threats: %s\n", threats.map(&:to_s).join(', ')
+      unless nogos.empty?
+        output  += sprintf "Player %s must not play cell%s %s\n", Connect4::PLAYER_TO_COLOR[next_player], 1 < nogos.size  ?  's'  :  '', nogos.map(&:to_s).join(', ')
+      end #unless
+      output  += sprintf "Player %s can play here: %s\n", Connect4::PLAYER_TO_COLOR[next_player], playable.map(&:to_s).sort.join(', ')
     end #if
 
     output
